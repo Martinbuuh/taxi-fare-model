@@ -1,0 +1,15 @@
+artifact_uri: file:///Users/martinbuhl/code/Martinbuuh/TaxiFareModel/mlruns/1/f055e11628444a499c2b88e23fa3628b/artifacts
+end_time: null
+entry_point_name: ''
+experiment_id: '1'
+lifecycle_stage: active
+name: ''
+run_id: f055e11628444a499c2b88e23fa3628b
+run_uuid: f055e11628444a499c2b88e23fa3628b
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1637069138097
+status: 1
+tags: []
+user_id: unknown
