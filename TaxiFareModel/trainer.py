@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from sklearn import model_selection
 from TaxiFareModel.data import *
 from TaxiFareModel.encoders import *
 from TaxiFareModel.utils import *
@@ -7,11 +8,23 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import Ridge, Lasso, LinearRegression
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.model_selection import RandomizedSearchCV
+from sklearn.svm import SVR
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
+from sklearn.ensemble import AdaBoostRegressor
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import VotingRegressor
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.ensemble import StackingRegressor
+from sklearn.ensemble import RandomForestRegressor
+
 from sklearn.model_selection import train_test_split
 from memoized_property import memoized_property
 import mlflow
 from mlflow.tracking import MlflowClient
+from joblib import dump
 
 MLFLOW_URI = "https://mlflow.lewagon.co/"
 EXPERIMENT_NAME = "[FR] [PARIS] [MARTIN] trainer + version_1"
@@ -40,11 +53,23 @@ class Trainer():
             'dropoff_longitude'
         ]), ('time', time_pipe, ['pickup_datetime'])],
                                          remainder="drop")
-        pipe = Pipeline([('preproc', preproc_pipe),
-                         ('linear_model', LinearRegression())])
-        self.pipeline = pipe
-        #more models
 
+        gboost = GradientBoostingRegressor(n_estimators=100)
+        ridge = Ridge()
+        svm = SVR(C=1, epsilon=0.05)
+        adaboost = AdaBoostRegressor(base_estimator=DecisionTreeRegressor(max_depth=None))
+
+        model = StackingRegressor(
+            estimators=[("gboost", gboost),("adaboost", adaboost),("ridge", ridge), ("svm_rbf", svm)],
+            final_estimator=LinearRegression(),
+            cv=5,
+            n_jobs=-1)
+
+        pipe = Pipeline([('preproc', preproc_pipe),
+                            ('model', model)])
+        self.pipeline = pipe
+        #params
+        self.mlflow_log_param('model', 'mixed stacking')
 
     def run(self):
         """set and train the pipeline"""
@@ -55,9 +80,15 @@ class Trainer():
         """evaluates the pipeline on df_test and return the RMSE"""
         y_pred = self.pipeline.predict(X_test)
         rmse = compute_rmse(y_pred, y_test)
+        #metrics
         self.mlflow_log_metric('rmse',rmse)
-        #more metrics
         return rmse
+
+
+    def save_model(self):
+        """ Save the trained model into a model.joblib file """
+        dump(self, 'model.joblib')
+
 
     @memoized_property
     def mlflow_client(self):
@@ -104,3 +135,4 @@ if __name__ == "__main__":
     print(
         f"experiment URL: https://mlflow.lewagon.co/#/experiments/{experiment_id}"
     )
+    train.save_model()
