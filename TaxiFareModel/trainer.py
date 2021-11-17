@@ -1,33 +1,57 @@
 import pandas as pd
 import numpy as np
-from sklearn import model_selection
+
 from TaxiFareModel.data import *
 from TaxiFareModel.encoders import *
 from TaxiFareModel.utils import *
+from TaxiFareModel.params import BUCKET_NAME
+from TaxiFareModel.gcp import *
+
+from sklearn import model_selection
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.linear_model import Ridge, Lasso, LinearRegression
 from sklearn.neighbors import KNeighborsRegressor
-from sklearn.model_selection import RandomizedSearchCV
 from sklearn.svm import SVR
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 from sklearn.ensemble import AdaBoostRegressor
 from sklearn.tree import DecisionTreeRegressor
-from sklearn.ensemble import VotingRegressor
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.ensemble import StackingRegressor
 from sklearn.ensemble import RandomForestRegressor
-
 from sklearn.model_selection import train_test_split
+
 from memoized_property import memoized_property
 import mlflow
 from mlflow.tracking import MlflowClient
-from joblib import dump
+
+import joblib
+from google.cloud import storage
+from termcolor import colored
 
 MLFLOW_URI = "https://mlflow.lewagon.co/"
 EXPERIMENT_NAME = "[FR] [PARIS] [MARTIN] trainer + version_1"
+MODEL_DIRECTORY = 'Pipeline'
+
+
+params = dict(
+    nrows=10000,
+    upload=True,
+    local=False,  # set to False to get data from GCP (Storage or BigQuery)
+    gridsearch=False,
+    optimize=True,
+    estimator="xgboost",
+    mlflow=True,  # set to True to log params to mlflow
+    experiment_name=EXPERIMENT_NAME,
+    pipeline_memory=None,  # None if no caching and True if caching expected
+    distance_type="manhattan",
+    feateng=[
+        "distance_to_center", "direction", "distance", "time_features",
+        "geohash"
+    ],
+    n_jobs=-1)  # Try with njobs=1 and njobs = -1
 
 
 class Trainer():
@@ -65,11 +89,20 @@ class Trainer():
             cv=5,
             n_jobs=-1)
 
-        pipe = Pipeline([('preproc', preproc_pipe),
-                            ('model', model)])
+        pipe = Pipeline([('preproc', preproc_pipe), ('model', model)],
+                        memory="local_path")
         self.pipeline = pipe
         #params
         self.mlflow_log_param('model', 'mixed stacking')
+
+    #def grid_search():
+    #    param_grid =  {'kneighborsregressor__n_neighbors': [3,4,5,6,7,8,9,10,15,20,30]}
+    #    search_knn = GridSearchCV(self.pipeline, param_grid=param_grid,
+    #                          cv=3, n_jobs=-1, verbose=2, scoring=rmse_neg)
+
+    #    search_knn.fit(X, y_log);
+    #    print(search_knn.best_params_)
+    #    search_knn.best_score_
 
     def run(self):
         """set and train the pipeline"""
@@ -84,10 +117,15 @@ class Trainer():
         self.mlflow_log_metric('rmse',rmse)
         return rmse
 
-
     def save_model(self):
-        """ Save the trained model into a model.joblib file """
-        dump(self, 'model.joblib')
+        """method that saves the model into a .joblib file and uploads it on Google Storage /models folder"""
+        # saving the trained model to disk is mandatory to then beeing able to upload it to storage
+        # Implement here
+        joblib.dump(self.pipeline, 'model.joblib')
+        print("saved model.joblib locally")
+
+        # Implement here
+        storage_upload(MODEL_DIRECTORY, BUCKET_NAME)
 
 
     @memoized_property
@@ -115,10 +153,11 @@ class Trainer():
 
 if __name__ == "__main__":
     # store the data in a DataFrame
-    N = 10_000
-    df = get_data(nrows=N)
+    df = get_data()
     #df = download_data()
     df = clean_data(df)
+    #Optimized
+    df = df_optimized(df)
     # set X and y
     y = df["fare_amount"]
     X = df.drop("fare_amount", axis=1)

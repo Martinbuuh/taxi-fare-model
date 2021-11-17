@@ -1,27 +1,24 @@
+from google.cloud import storage
 import pandas as pd
+from sklearn import linear_model
+import numpy as np
+import joblib
+from TaxiFareModel.params import BUCKET_NAME, BUCKET_TRAIN_DATA_PATH
+from TaxiFareModel.gcp import *
 
-AWS_BUCKET_PATH = "s3://wagon-public-datasets/taxi-fare-train.csv"
+#AWS_BUCKET_PATH = "s3://wagon-public-datasets/taxi-fare-train.csv"
+#LOCAL_PATH = 'raw_data/train_10k.csv'
 
-LOCAL_PATH = 'raw_data/train_10k.csv'
-
-def get_data(nrows=10_000, local=False):
-    '''returns a DataFrame with nrows from s3 bucket'''
-    df = pd.read_csv(LOCAL_PATH, nrows = nrows)
-    return df
-
-
-def download_data():
-    df = pd.red_csv('gs://wagon-storage-722-buhl/data/train_10k.csv')
-    return df
-
-MODEL_PATH = 'model.joblib'
-
-#def upload_data():
-#    df = pd.red_csv('gs://wagon-storage-722-buhl/data/train_10k.csv')
+#def get_data(nrows=1_000):
+#    '''returns a DataFrame with nrows from s3 bucket'''
+#    df = pd.read_csv(LOCAL_PATH, nrows=nrows)
 #    return df
 
-#def save_data(bucket_name, source_file_name, destination_blob_name):
 
+def get_data():
+    """method to get the training data (or a portion of it) from google cloud bucket"""
+    df = pd.read_csv(f"gs://{BUCKET_NAME}/{BUCKET_TRAIN_DATA_PATH}")
+    return df
 
 
 def clean_data(df, test=False):
@@ -41,13 +38,14 @@ def clean_data(df, test=False):
 
 def df_optimized(df, verbose=True, **kwargs):
     """
-    Reduces size of dataframe by downcasting numerical columns
+    Reduces size of dataframe by downcasting numeircal columns
     :param df: input dataframe
     :param verbose: print size reduction if set to True
     :param kwargs:
-    :return:
+    :return: df optimized
     """
     in_size = df.memory_usage(index=True).sum()
+    # Optimized size here
     for type in ["float", "integer"]:
         l_cols = list(df.select_dtypes(include=type))
         for col in l_cols:

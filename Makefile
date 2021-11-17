@@ -1,6 +1,7 @@
 # ----------------------------------
 #          INSTALL & TEST
 # ----------------------------------
+
 install_requirements:
 	@pip install -r requirements.txt
 
@@ -55,19 +56,41 @@ pypi:
 	@twine upload dist/* -u $(PYPI_USERNAME)
 
 
+# --------------------------------------------------------
+#      GOOGLE CLOUD PLATFORM Create Bucket and store data
+# ---------------------------------------------------------
+### Project ID  - - - - - - - - - - - - - - - - - - - - - -
 
-# ----------------------------------
-#      GOOGLE CLOUD PLATFORM
-# ----------------------------------
+PROJECT_ID = ethereal-terra-328013
 
-# project id - replace with your GCP project id
-PROJECT_ID=ethereal-terra-328013
+### GCP Storage - - - - - - - - - - - - - - - - - - - - - -
 
-# bucket name - replace with your GCP bucket name
-BUCKET_NAME=wagon-storage-722-buhl
+BUCKET_NAME = wagon-storage-722-buhl
 
-# choose your region from https://cloud.google.com/storage/docs/locations#available_locations
+##### Training  - - - - - - - - - - - - - - - - - - - - - -
+
+# will store the packages uploaded to GCP for the training
+BUCKET_TRAINING_FOLDER = 'trainings'
+
+### GCP AI Platform - - - - - - - - - - - - - - - - - - - -
+
+##### Machine configuration - - - - - - - - - - - - - - - -
+
 REGION=europe-west1
+
+PYTHON_VERSION=3.7
+FRAMEWORK=scikit-learn
+RUNTIME_VERSION=1.15
+
+##### Package params  - - - - - - - - - - - - - - - - - - -
+
+PACKAGE_NAME=TaxiFareModel
+FILENAME=trainer
+
+##### Job - - - - - - - - - - - - - - - - - - - - - - - - -
+
+JOB_NAME=taxi_fare_training_pipeline_$(shell date +'%Y%m%d_%H%M%S')
+
 
 set_project:
 	@gcloud config set project ${PROJECT_ID}
@@ -77,7 +100,7 @@ create_bucket:
 
 # path to the file to upload to GCP (the path to the file should be absolute or should match the directory where the make command is ran)
 # replace with your local path to the `train_1k.csv` and make sure to put the path between quotes
-LOCAL_PATH="/Users/martinbuhl/code/Martinbuuh/TaxiFareModel/raw_data/train_1k.csv"
+LOCAL_PATH="/Users/martinbuhl/code/Martinbuuh/TaxiFareModel/raw_data/train_10k.csv"
 
 # bucket directory in which to store the uploaded file (`data` is an arbitrary name that we choose to use)
 BUCKET_FOLDER=data
@@ -88,3 +111,31 @@ BUCKET_FILE_NAME=$(shell basename ${LOCAL_PATH})
 upload_data:
     # @gsutil cp train_1k.csv gs://wagon-ml-my-bucket-name/data/train_1k.csv
 	@gsutil cp ${LOCAL_PATH} gs://${BUCKET_NAME}/${BUCKET_FOLDER}/${BUCKET_FILE_NAME}
+
+
+# --------------------------------------------------------
+#      GOOGLE CLOUD PLATFORM Run locally and Train model
+# ---------------------------------------------------------
+
+
+run_locally:
+	@python -m ${PACKAGE_NAME}.${FILENAME}
+
+gcp_submit_training:
+	@gcloud ai-platform jobs submit training ${JOB_NAME} \
+		--job-dir gs://${BUCKET_NAME}/${BUCKET_TRAINING_FOLDER} \
+		--package-path ${PACKAGE_NAME} \
+		--module-name ${PACKAGE_NAME}.${FILENAME} \
+		--python-version=${PYTHON_VERSION} \
+		--runtime-version=${RUNTIME_VERSION} \
+		--region ${REGION} \
+		--stream-logs \
+    --scale-tier CUSTOM \
+    --master-machine-type n1-standard-16
+
+clean:
+	@rm -f */version.txt
+	@rm -f .coverage
+	@rm -fr */__pycache__ __pycache__
+	@rm -fr build dist *.dist-info *.egg-info
+	@rm -fr */*.pyc
