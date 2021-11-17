@@ -4,10 +4,24 @@ AWS_BUCKET_PATH = "s3://wagon-public-datasets/taxi-fare-train.csv"
 
 LOCAL_PATH = 'raw_data/train_10k.csv'
 
-def get_data(n_rows=10000):
+def get_data(nrows=10_000, local=False):
     '''returns a DataFrame with nrows from s3 bucket'''
-    df = pd.read_csv(LOCAL_PATH, nrows = n_rows)
+    df = pd.read_csv(LOCAL_PATH, nrows = nrows)
     return df
+
+
+def download_data():
+    df = pd.red_csv('gs://wagon-storage-722-buhl/data/train_10k.csv')
+    return df
+
+MODEL_PATH = 'model.joblib'
+
+#def upload_data():
+#    df = pd.red_csv('gs://wagon-storage-722-buhl/data/train_10k.csv')
+#    return df
+
+#def save_data(bucket_name, source_file_name, destination_blob_name):
+
 
 
 def clean_data(df, test=False):
@@ -22,6 +36,29 @@ def clean_data(df, test=False):
     df = df[df["pickup_longitude"].between(left=-74.3, right=-72.9)]
     df = df[df["dropoff_latitude"].between(left=40, right=42)]
     df = df[df["dropoff_longitude"].between(left=-74, right=-72.9)]
+    return df
+
+
+def df_optimized(df, verbose=True, **kwargs):
+    """
+    Reduces size of dataframe by downcasting numerical columns
+    :param df: input dataframe
+    :param verbose: print size reduction if set to True
+    :param kwargs:
+    :return:
+    """
+    in_size = df.memory_usage(index=True).sum()
+    for type in ["float", "integer"]:
+        l_cols = list(df.select_dtypes(include=type))
+        for col in l_cols:
+            df[col] = pd.to_numeric(df[col], downcast=type)
+            if type == "float":
+                df[col] = pd.to_numeric(df[col], downcast="integer")
+    out_size = df.memory_usage(index=True).sum()
+    ratio = (1 - round(out_size / in_size, 2)) * 100
+    GB = out_size / 1000000000
+    if verbose:
+        print("optimized size by {} % | {} GB".format(ratio, GB))
     return df
 
 

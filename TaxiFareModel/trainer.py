@@ -115,7 +115,9 @@ class Trainer():
 
 if __name__ == "__main__":
     # store the data in a DataFrame
-    df = get_data()
+    N = 10_000
+    df = get_data(nrows=N)
+    #df = download_data()
     df = clean_data(df)
     # set X and y
     y = df["fare_amount"]
