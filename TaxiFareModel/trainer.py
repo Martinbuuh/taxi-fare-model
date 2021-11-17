@@ -7,21 +7,15 @@ from TaxiFareModel.utils import *
 from TaxiFareModel.params import BUCKET_NAME
 from TaxiFareModel.gcp import *
 
-from sklearn import model_selection
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.linear_model import Ridge, Lasso, LinearRegression
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.svm import SVR
-from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
-from sklearn.ensemble import AdaBoostRegressor
+from sklearn.model_selection import GridSearchCV, RandomizedSearchCV, train_test_split
 from sklearn.tree import DecisionTreeRegressor
-from sklearn.ensemble import GradientBoostingRegressor
-from sklearn.ensemble import StackingRegressor
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split
+from sklearn.ensemble import GradientBoostingRegressor, StackingRegressor, RandomForestRegressor, AdaBoostRegressor
 
 from memoized_property import memoized_property
 import mlflow
